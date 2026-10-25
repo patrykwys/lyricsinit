@@ -1,5 +1,6 @@
 package com.patrykwys.lyricsinit.media
 
+import android.graphics.Bitmap
 import android.media.session.MediaController
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -10,15 +11,26 @@ class SpotifyPlayback {
     private val _track = MutableStateFlow<Track?>(null)
     val track: StateFlow<Track?> = _track.asStateFlow()
 
+    // Kept out of Track: Bitmap equality is by reference, which would defeat StateFlow de-duplication.
+    private val _albumArt = MutableStateFlow<Bitmap?>(null)
+    val albumArt: StateFlow<Bitmap?> = _albumArt.asStateFlow()
+
     private val _state = MutableStateFlow(PlaybackSnapshot.STOPPED)
     val state: StateFlow<PlaybackSnapshot> = _state.asStateFlow()
 
     @Volatile
     private var controller: MediaController? = null
 
-    fun update(controller: MediaController?, track: Track?, state: PlaybackSnapshot) {
+    fun updateController(controller: MediaController?) {
         this.controller = controller
+    }
+
+    fun updateMetadata(track: Track?, albumArt: Bitmap?) {
         _track.value = track
+        _albumArt.value = albumArt
+    }
+
+    fun updateState(state: PlaybackSnapshot) {
         _state.value = state
     }
 

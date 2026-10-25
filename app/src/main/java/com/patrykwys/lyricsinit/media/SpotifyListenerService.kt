@@ -1,6 +1,7 @@
 package com.patrykwys.lyricsinit.media
 
 import android.content.ComponentName
+import android.graphics.Bitmap
 import android.media.MediaMetadata
 import android.media.session.MediaController
 import android.media.session.MediaSessionManager
@@ -26,8 +27,8 @@ class SpotifyListenerService : NotificationListenerService() {
     }
 
     private val callback = object : MediaController.Callback() {
-        override fun onMetadataChanged(metadata: MediaMetadata?) = publish()
-        override fun onPlaybackStateChanged(state: PlaybackState?) = publish()
+        override fun onMetadataChanged(metadata: MediaMetadata?) = publishMetadata(metadata)
+        override fun onPlaybackStateChanged(state: PlaybackState?) = graph.playback.updateState(state.toSnapshot())
         override fun onSessionDestroyed() = detach()
     }
 
@@ -63,8 +64,14 @@ class SpotifyListenerService : NotificationListenerService() {
 
     private fun publish() {
         val current = controller
-        graph.playback.update(current, current?.metadata?.toTrack(), current?.playbackState.toSnapshot())
+        graph.playback.updateController(current)
+        publishMetadata(current?.metadata)
+        graph.playback.updateState(current?.playbackState.toSnapshot())
     }
+
+    // Only on metadata changes: every controller.metadata read unparcels a fresh album-art bitmap.
+    private fun publishMetadata(metadata: MediaMetadata?) =
+        graph.playback.updateMetadata(metadata?.toTrack(), metadata?.albumArt())
 
     private companion object {
         const val SPOTIFY_PACKAGE = "com.spotify.music"
@@ -81,6 +88,11 @@ private fun MediaMetadata.toTrack(): Track? {
         durationMs = getLong(MediaMetadata.METADATA_KEY_DURATION),
     )
 }
+
+private fun MediaMetadata.albumArt(): Bitmap? =
+    getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
+        ?: getBitmap(MediaMetadata.METADATA_KEY_ART)
+        ?: getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON)
 
 private fun PlaybackState?.toSnapshot(): PlaybackSnapshot {
     if (this == null) return PlaybackSnapshot.STOPPED
