@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -34,6 +35,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -87,7 +89,7 @@ fun MainScreen(
                     onClick = onFixBattery,
                 )
             }
-            NowPlaying(state.view.status.track, state.thumbnail)
+            NowPlaying(state.view.status.track, state.albumThumbnail, state.artistThumbnail)
             OffsetControls(state.offsetMs, onAdjust = onAdjustOffset, onReset = onResetOffset)
             CarLayoutPicker(state.carLayout, onSelect = onSelectCarLayout)
             HorizontalDivider()
@@ -108,9 +110,10 @@ private fun SetupCard(title: String, body: String, action: String, onClick: () -
 }
 
 @Composable
-private fun NowPlaying(track: Track?, thumbnail: Bitmap?) {
+private fun NowPlaying(track: Track?, album: Bitmap?, artist: Bitmap?) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Thumbnail(thumbnail)
+        Thumbnail(album, contentDescription = "Album", shape = RoundedCornerShape(8.dp))
+        Thumbnail(artist, contentDescription = "Artist", shape = CircleShape)
         Column(Modifier.weight(1f)) {
             Text(
                 text = track?.title ?: "Nothing playing",
@@ -130,17 +133,17 @@ private fun NowPlaying(track: Track?, thumbnail: Bitmap?) {
 }
 
 @Composable
-private fun Thumbnail(bitmap: Bitmap?) {
-    val shape = Modifier
+private fun Thumbnail(bitmap: Bitmap?, contentDescription: String, shape: Shape) {
+    val clipped = Modifier
         .size(56.dp)
-        .clip(CircleShape)
+        .clip(shape)
     if (bitmap == null) {
-        Box(shape.background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
+        Box(clipped.background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
             Text("♪", color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     } else {
         val image = remember(bitmap) { bitmap.asImageBitmap() }
-        Image(image, contentDescription = "Artist", modifier = shape, contentScale = ContentScale.Crop)
+        Image(image, contentDescription = contentDescription, modifier = clipped, contentScale = ContentScale.Crop)
     }
 }
 

@@ -2,7 +2,7 @@ package com.patrykwys.lyricsinit
 
 import android.content.Context
 import androidx.room.Room
-import com.patrykwys.lyricsinit.artwork.ArtistArtwork
+import com.patrykwys.lyricsinit.artwork.TrackArtwork
 import com.patrykwys.lyricsinit.lyrics.LrclibClient
 import com.patrykwys.lyricsinit.lyrics.LyricsDatabase
 import com.patrykwys.lyricsinit.lyrics.LyricsRepository
@@ -35,5 +35,5 @@ class AppGraph(context: Context) {
     val settings = AppSettings(context)
     val repository = LyricsRepository(LrclibClient(http), database.lyricsDao())
     val engine = LyricsEngine(playback, repository, settings, scope)
-    val artwork = ArtistArtwork(http, playback, scope)
+    val artwork = TrackArtwork(http, playback, scope)
 }

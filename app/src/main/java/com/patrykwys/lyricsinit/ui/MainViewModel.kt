@@ -9,7 +9,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.patrykwys.lyricsinit.AppSettings
 import com.patrykwys.lyricsinit.CarLayout
 import com.patrykwys.lyricsinit.LyricsApp
-import com.patrykwys.lyricsinit.artwork.ArtistArtwork
+import com.patrykwys.lyricsinit.artwork.TrackArtwork
 import com.patrykwys.lyricsinit.sync.LyricsEngine
 import com.patrykwys.lyricsinit.sync.LyricsView
 import kotlinx.coroutines.flow.SharingStarted
@@ -20,24 +20,26 @@ import kotlinx.coroutines.launch
 
 data class MainUiState(
     val view: LyricsView = LyricsView.EMPTY,
-    val thumbnail: Bitmap? = null,
+    val artistThumbnail: Bitmap? = null,
+    val albumThumbnail: Bitmap? = null,
     val offsetMs: Long = 0L,
     val carLayout: CarLayout = CarLayout.MESSAGE,
 )
 
 class MainViewModel(
     engine: LyricsEngine,
-    artwork: ArtistArtwork,
+    artwork: TrackArtwork,
     private val settings: AppSettings,
 ) : ViewModel() {
 
     val state: StateFlow<MainUiState> = combine(
         engine.view,
-        artwork.thumbnail,
+        artwork.artistThumbnail,
+        artwork.albumThumbnail,
         settings.offsetMs,
         settings.carLayout,
-    ) { view, thumbnail, offsetMs, carLayout ->
-        MainUiState(view, thumbnail, offsetMs, carLayout)
+    ) { view, artist, album, offsetMs, carLayout ->
+        MainUiState(view, artist, album, offsetMs, carLayout)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), MainUiState())
 
     fun adjustOffset(deltaMs: Long) {

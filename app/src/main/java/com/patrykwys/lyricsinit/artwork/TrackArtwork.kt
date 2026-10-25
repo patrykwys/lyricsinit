@@ -14,10 +14,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -37,11 +35,11 @@ private data class DeezerArtist(
 )
 
 /**
- * Thumbnail for the current song: the artist's photo from Deezer's public search API (no key),
- * falling back to the album art Spotify puts in its media session.
+ * Thumbnails for the current song: the artist's photo from Deezer's public search API (no key)
+ * and the album art Spotify puts in its media session.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
-class ArtistArtwork(
+class TrackArtwork(
     private val http: HttpClient,
     playback: SpotifyPlayback,
     scope: CoroutineScope,
@@ -51,17 +49,17 @@ class ArtistArtwork(
 
     private val photos = LruCache<String, Entry>(MAX_CACHED_ARTISTS)
 
-    private val artistPhoto: Flow<Bitmap?> = playback.track
+    val artistThumbnail: StateFlow<Bitmap?> = playback.track
         .map { it?.primaryArtist }
         .distinctUntilChanged()
         .transformLatest { artist ->
             emit(null) // never show the previous artist's photo while the new one loads
             if (artist != null) emit(photoFor(artist))
         }
+        .stateIn(scope, SharingStarted.Eagerly, null)
 
-    val thumbnail: StateFlow<Bitmap?> = combine(artistPhoto, playback.albumArt) { photo, albumArt ->
-        (photo ?: albumArt)?.scaledToFit(THUMBNAIL_PX)
-    }
+    val albumThumbnail: StateFlow<Bitmap?> = playback.albumArt
+        .map { it?.scaledToFit(THUMBNAIL_PX) }
         .flowOn(Dispatchers.Default)
         .stateIn(scope, SharingStarted.Eagerly, null)
 
@@ -93,7 +91,7 @@ class ArtistArtwork(
     }
 
     private companion object {
-        const val TAG = "ArtistArtwork"
+        const val TAG = "TrackArtwork"
         const val SEARCH_URL = "https://api.deezer.com/search/artist"
         const val SEARCH_LIMIT = 5
 
