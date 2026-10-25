@@ -97,7 +97,7 @@ fun MainScreen(
             NowPlaying(track, state.albumThumbnail, state.artistThumbnail)
             // Spotify leaves the duration out for some streams; there is nothing to scale the bar to then.
             if (track != null && track.durationMs > 0) {
-                SongTimeline(track.durationMs, state.playback, onSeek = onSeek)
+                SongTimeline(track.durationMs, state.playback, waveSeed = track.hashCode(), onSeek = onSeek)
             }
             OffsetControls(state.offsetMs, onAdjust = onAdjustOffset, onReset = onResetOffset)
             CarLayoutPicker(state.carLayout, onSelect = onSelectCarLayout)
