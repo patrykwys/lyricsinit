@@ -10,6 +10,7 @@ import com.patrykwys.lyricsinit.media.cleanTitle
 import com.patrykwys.lyricsinit.media.primaryArtist
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 /** Who sings which part of a track. Null when nobody knows. */
@@ -35,7 +36,7 @@ class GeniusSectionsRepository(
         }
 
         val entry = try {
-            CachedGeniusLyrics(id, fetch(track), fetchedAt = now)
+            CachedGeniusLyrics(id, fetchPatiently(track), fetchedAt = now)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -46,19 +47,50 @@ class GeniusSectionsRepository(
         entry.toSections(track)
     }
 
-    /** Only a hit with the same title and artist counts, which skips Genius's translation pages. */
+    /** Genius's false 404s come in stretches, so a failed lookup waits and tries again while the song plays. */
+    private suspend fun fetchPatiently(track: Track): String? {
+        for (wait in RETRY_DELAYS_MS) {
+            try {
+                return fetch(track)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.i(TAG, "Genius lookup failed, retrying in ${wait / 1000}s: ${e.message}")
+            }
+            delay(wait)
+        }
+        return fetch(track)
+    }
+
+    /**
+     * Only hits with the same title and artist count, which skips Genius's translation pages.
+     * A page that fails moves on to the next matching hit; if all of them fail, the error stands,
+     * so nothing is cached and the next play tries again.
+     */
     private suspend fun fetch(track: Track): String? {
         val title = track.cleanTitle.matchKey()
         val artist = track.primaryArtist.matchKey()
-        val song = client.search("${track.primaryArtist} ${track.cleanTitle}").firstOrNull {
+        val songs = client.search("${track.primaryArtist} ${track.cleanTitle}").filter {
             !it.instrumental && it.title.matchKey() == title && artist in it.artistNames.matchKey()
-        } ?: return null
-        return client.lyrics(song)
+        }
+        var failure: Exception? = null
+        for (song in songs) {
+            try {
+                return client.lyrics(song)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                failure = failure ?: e
+            }
+        }
+        failure?.let { throw it }
+        return null
     }
 
     private companion object {
         const val TAG = "GeniusSections"
         const val NOT_FOUND_RETRY_MS = 24 * 60 * 60 * 1000L
+        val RETRY_DELAYS_MS = listOf(5_000L, 20_000L, 60_000L)
     }
 }
 
