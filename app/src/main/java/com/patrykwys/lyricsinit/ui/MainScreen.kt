@@ -30,9 +30,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,8 +40,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.patrykwys.lyricsinit.AppGraph
 import com.patrykwys.lyricsinit.CarLayout
 import com.patrykwys.lyricsinit.lyrics.LyricLine
 import com.patrykwys.lyricsinit.lyrics.Lyrics
@@ -51,25 +47,22 @@ import com.patrykwys.lyricsinit.media.Track
 import com.patrykwys.lyricsinit.sync.LyricsStatus
 import com.patrykwys.lyricsinit.sync.LyricsView
 import com.patrykwys.lyricsinit.sync.message
-import kotlinx.coroutines.launch
 import java.util.Locale
 
 private const val OFFSET_STEP_MS = 250L
 
+/** Stateless: draws [state] and reports user actions; [MainViewModel] owns the data. */
 @Composable
 fun MainScreen(
-    graph: AppGraph,
+    state: MainUiState,
     hasAccess: Boolean,
     batteryUnrestricted: Boolean,
     onGrantAccess: () -> Unit,
     onFixBattery: () -> Unit,
+    onAdjustOffset: (Long) -> Unit,
+    onResetOffset: () -> Unit,
+    onSelectCarLayout: (CarLayout) -> Unit,
 ) {
-    val view by graph.engine.view.collectAsStateWithLifecycle()
-    val thumbnail by graph.artwork.thumbnail.collectAsStateWithLifecycle()
-    val offsetMs by graph.settings.offsetMs.collectAsStateWithLifecycle(initialValue = 0L)
-    val carLayout by graph.settings.carLayout.collectAsStateWithLifecycle(initialValue = CarLayout.MESSAGE)
-    val scope = rememberCoroutineScope()
-
     Scaffold { padding ->
         Column(
             modifier = Modifier
@@ -94,18 +87,11 @@ fun MainScreen(
                     onClick = onFixBattery,
                 )
             }
-            NowPlaying(view.status.track, thumbnail)
-            OffsetControls(
-                offsetMs = offsetMs,
-                onAdjust = { delta -> scope.launch { graph.settings.adjustOffset(delta) } },
-                onReset = { scope.launch { graph.settings.resetOffset() } },
-            )
-            CarLayoutPicker(
-                selected = carLayout,
-                onSelect = { layout -> scope.launch { graph.settings.setCarLayout(layout) } },
-            )
+            NowPlaying(state.view.status.track, state.thumbnail)
+            OffsetControls(state.offsetMs, onAdjust = onAdjustOffset, onReset = onResetOffset)
+            CarLayoutPicker(state.carLayout, onSelect = onSelectCarLayout)
             HorizontalDivider()
-            LyricsBody(view, Modifier.weight(1f).fillMaxWidth())
+            LyricsBody(state.view, Modifier.weight(1f).fillMaxWidth())
         }
     }
 }

@@ -8,14 +8,18 @@ import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.app.NotificationManagerCompat
-import com.patrykwys.lyricsinit.graph
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 class MainActivity : ComponentActivity() {
 
+    private val viewModel: MainViewModel by viewModels { MainViewModel.Factory }
+
+    // System permission checks stay here: they need the Activity and are re-read on every resume.
     private var hasAccess by mutableStateOf(false)
     private var batteryUnrestricted by mutableStateOf(true)
 
@@ -23,9 +27,10 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
+            val state by viewModel.state.collectAsStateWithLifecycle()
             LyricsTheme {
                 MainScreen(
-                    graph = graph,
+                    state = state,
                     hasAccess = hasAccess,
                     batteryUnrestricted = batteryUnrestricted,
                     onGrantAccess = { startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) },
@@ -34,6 +39,9 @@ class MainActivity : ComponentActivity() {
                             Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:$packageName"))
                         )
                     },
+                    onAdjustOffset = viewModel::adjustOffset,
+                    onResetOffset = viewModel::resetOffset,
+                    onSelectCarLayout = viewModel::setCarLayout,
                 )
             }
         }
