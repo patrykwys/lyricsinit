@@ -1,6 +1,7 @@
 package com.patrykwys.lyricsinit.lyrics
 
 import com.patrykwys.lyricsinit.media.Track
+import com.patrykwys.lyricsinit.media.primaryArtist
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -44,7 +45,7 @@ class LyricsRepository(
 
         val queries = listOf(
             track.title to track.artist,
-            cleanTitle(track.title) to primaryArtist(track.artist),
+            cleanTitle(track.title) to track.primaryArtist,
         ).distinct()
 
         var fallback = direct?.takeIf { it.hasLyrics }
@@ -81,5 +82,3 @@ private val versionSuffix = Regex("""\s+-\s+.*$""")
 
 private fun cleanTitle(title: String): String =
     title.replace(featuring, "").replace(versionSuffix, "").trim().ifEmpty { title }
-
-private fun primaryArtist(artist: String): String = artist.substringBefore(",").trim()

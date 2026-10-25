@@ -9,6 +9,10 @@ data class Track(
     val durationMs: Long,
 )
 
+/** First credited artist; Spotify joins features as "A, B". */
+val Track.primaryArtist: String
+    get() = artist.substringBefore(",").trim()
+
 /**
  * Playback position as last reported by Spotify. Spotify only reports on changes,
  * so the live position is extrapolated from [updatedAt] (elapsedRealtime clock).
