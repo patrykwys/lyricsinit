@@ -29,7 +29,7 @@ class LyricsRepository(
             throw e
         }
 
-        val entry = CachedLyrics(id, found?.syncedLyrics, found?.plainLyrics, found?.instrumental == true, now)
+        val entry = found.toEntity(id, fetchedAt = now)
         dao.upsert(entry)
         entry.toLyrics()
     }
@@ -69,6 +69,15 @@ class LyricsRepository(
 }
 
 private fun Track.cacheKey(): String = "${artist.lowercase().trim()}|${title.lowercase().trim()}|${durationMs / 1000}"
+
+/** A null result still becomes a row, so "not found" is cached too. */
+private fun LrclibTrack?.toEntity(id: String, fetchedAt: Long) = CachedLyrics(
+    id = id,
+    synced = this?.syncedLyrics,
+    plain = this?.plainLyrics,
+    instrumental = this?.instrumental == true,
+    fetchedAt = fetchedAt,
+)
 
 private fun CachedLyrics.toLyrics(): Lyrics {
     synced?.let(LrcParser::parse)?.takeIf { it.isNotEmpty() }?.let { return Lyrics.Synced(it) }
