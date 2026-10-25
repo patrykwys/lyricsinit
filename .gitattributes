@@ -1,0 +1,4 @@
+# gradlew must keep Unix line endings or it won't run on macOS/Linux
+gradlew text eol=lf
+*.bat text eol=crlf
+*.jar binary

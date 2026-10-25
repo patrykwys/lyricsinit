@@ -1,0 +1,27 @@
+# Gradle caches and build output (regenerated on every build)
+.gradle/
+.kotlin/
+build/
+/captures
+.externalNativeBuild/
+.cxx/
+
+# Android Studio / IntelliJ settings (per-machine)
+.idea/
+*.iml
+
+# SDK path on this PC; Android Studio recreates it
+/local.properties
+
+# Built apps
+*.apk
+*.aab
+
+# Signing keys and their passwords: never commit these
+*.jks
+*.keystore
+keystore.properties
+
+# OS junk
+.DS_Store
+Thumbs.db
