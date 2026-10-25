@@ -10,6 +10,8 @@ import com.patrykwys.lyricsinit.AppSettings
 import com.patrykwys.lyricsinit.CarLayout
 import com.patrykwys.lyricsinit.LyricsApp
 import com.patrykwys.lyricsinit.artwork.TrackArtwork
+import com.patrykwys.lyricsinit.media.PlaybackSnapshot
+import com.patrykwys.lyricsinit.media.SpotifyPlayback
 import com.patrykwys.lyricsinit.sync.LyricsEngine
 import com.patrykwys.lyricsinit.sync.LyricsView
 import kotlinx.coroutines.flow.SharingStarted
@@ -20,6 +22,7 @@ import kotlinx.coroutines.launch
 
 data class MainUiState(
     val view: LyricsView = LyricsView.EMPTY,
+    val playback: PlaybackSnapshot = PlaybackSnapshot.STOPPED,
     val artistThumbnail: Bitmap? = null,
     val albumThumbnail: Bitmap? = null,
     val offsetMs: Long = 0L,
@@ -28,19 +31,25 @@ data class MainUiState(
 
 class MainViewModel(
     engine: LyricsEngine,
+    private val playback: SpotifyPlayback,
     artwork: TrackArtwork,
     private val settings: AppSettings,
 ) : ViewModel() {
 
+    // combine() takes at most five typed flows, so the two thumbnails travel as a pair.
+    private val thumbnails = combine(artwork.artistThumbnail, artwork.albumThumbnail, ::Pair)
+
     val state: StateFlow<MainUiState> = combine(
         engine.view,
-        artwork.artistThumbnail,
-        artwork.albumThumbnail,
+        playback.state,
+        thumbnails,
         settings.offsetMs,
         settings.carLayout,
-    ) { view, artist, album, offsetMs, carLayout ->
-        MainUiState(view, artist, album, offsetMs, carLayout)
+    ) { view, playbackState, (artist, album), offsetMs, carLayout ->
+        MainUiState(view, playbackState, artist, album, offsetMs, carLayout)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), MainUiState())
+
+    fun seekTo(positionMs: Long) = playback.seekTo(positionMs)
 
     fun adjustOffset(deltaMs: Long) {
         viewModelScope.launch { settings.adjustOffset(deltaMs) }
@@ -61,7 +70,7 @@ class MainViewModel(
         val Factory = viewModelFactory {
             initializer {
                 val graph = (this[APPLICATION_KEY] as LyricsApp).graph
-                MainViewModel(graph.engine, graph.artwork, graph.settings)
+                MainViewModel(graph.engine, graph.playback, graph.artwork, graph.settings)
             }
         }
     }

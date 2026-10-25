@@ -42,4 +42,8 @@ class SpotifyPlayback {
     fun next() {
         controller?.transportControls?.skipToNext()
     }
+
+    fun seekTo(positionMs: Long) {
+        controller?.transportControls?.seekTo(positionMs)
+    }
 }
