@@ -7,6 +7,9 @@ import com.patrykwys.lyricsinit.lyrics.LrclibClient
 import com.patrykwys.lyricsinit.lyrics.LyricsDatabase
 import com.patrykwys.lyricsinit.lyrics.LyricsRepository
 import com.patrykwys.lyricsinit.media.SpotifyPlayback
+import com.patrykwys.lyricsinit.singers.CreditSingersUseCase
+import com.patrykwys.lyricsinit.singers.GeniusClient
+import com.patrykwys.lyricsinit.singers.GeniusSectionsRepository
 import com.patrykwys.lyricsinit.sync.LyricsEngine
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
@@ -36,6 +39,7 @@ class AppGraph(context: Context) {
     val playback = SpotifyPlayback()
     val settings = AppSettings(context)
     val repository = LyricsRepository(LrclibClient(http), database.lyricsDao())
-    val engine = LyricsEngine(playback, repository, settings, scope)
+    private val sections = GeniusSectionsRepository(GeniusClient(http), database.geniusLyricsDao())
+    val engine = LyricsEngine(playback, repository, CreditSingersUseCase(sections), settings, scope)
     val artwork = TrackArtwork(http, playback, scope)
 }

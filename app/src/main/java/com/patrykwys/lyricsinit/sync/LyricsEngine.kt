@@ -7,6 +7,7 @@ import com.patrykwys.lyricsinit.lyrics.LyricsRepository
 import com.patrykwys.lyricsinit.lyrics.indexAt
 import com.patrykwys.lyricsinit.media.SpotifyPlayback
 import com.patrykwys.lyricsinit.media.Track
+import com.patrykwys.lyricsinit.singers.CreditSingersUseCase
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -14,6 +15,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.transformLatest
 import kotlin.time.Duration.Companion.milliseconds
@@ -58,7 +61,8 @@ fun LyricsStatus.message(): String? = when (this) {
 @OptIn(ExperimentalCoroutinesApi::class)
 class LyricsEngine(
     playback: SpotifyPlayback,
-    repository: LyricsRepository,
+    private val repository: LyricsRepository,
+    private val creditSingers: CreditSingersUseCase,
     settings: AppSettings,
     scope: CoroutineScope,
 ) {
@@ -69,20 +73,28 @@ class LyricsEngine(
                 return@transformLatest
             }
             emit(LyricsStatus.Loading(track))
-            // Keep retrying while this track plays; signal drops out a lot in a car.
-            while (true) {
-                try {
-                    emit(LyricsStatus.Ready(track, repository.get(track)))
-                    break
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    emit(LyricsStatus.Failed(track, e.message ?: e.javaClass.simpleName))
-                    delay(RETRY_DELAY_MS.milliseconds)
-                }
+            val lyrics = load(track) { reason -> emit(LyricsStatus.Failed(track, reason)) }
+            if (lyrics is Lyrics.Synced) {
+                emitAll(creditSingers(track, lyrics).map { LyricsStatus.Ready(track, it) })
+            } else {
+                emit(LyricsStatus.Ready(track, lyrics))
             }
         }
         .stateIn(scope, SharingStarted.Eagerly, LyricsStatus.Idle)
+
+    /** Keeps retrying while this track plays; signal drops out a lot in a car. */
+    private suspend fun load(track: Track, onFailure: suspend (String) -> Unit): Lyrics {
+        while (true) {
+            try {
+                return repository.get(track)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                onFailure(e.message ?: e.javaClass.simpleName)
+                delay(RETRY_DELAY_MS.milliseconds)
+            }
+        }
+    }
 
     /** Sleeps until the next line is due instead of polling, and restarts on any seek/pause/offset change. */
     private val index: StateFlow<Int> = combine(status, playback.state, settings.offsetMs) { status, state, offset ->
