@@ -1,6 +1,7 @@
 package com.patrykwys.lyricsinit.lyrics
 
 import com.patrykwys.lyricsinit.media.Track
+import com.patrykwys.lyricsinit.media.cleanTitle
 import com.patrykwys.lyricsinit.media.primaryArtist
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -45,7 +46,7 @@ class LyricsRepository(
 
         val queries = listOf(
             track.title to track.artist,
-            cleanTitle(track.title) to track.primaryArtist,
+            track.cleanTitle to track.primaryArtist,
         ).distinct()
 
         var fallback = direct?.takeIf { it.hasLyrics }
@@ -68,7 +69,8 @@ class LyricsRepository(
     }
 }
 
-private fun Track.cacheKey(): String = "${artist.lowercase().trim()}|${title.lowercase().trim()}|${durationMs / 1000}"
+/** Shared by every cache table that is keyed by track. */
+internal fun Track.cacheKey(): String = "${artist.lowercase().trim()}|${title.lowercase().trim()}|${durationMs / 1000}"
 
 /** A null result still becomes a row, so "not found" is cached too. */
 private fun LrclibTrack?.toEntity(id: String, fetchedAt: Long) = CachedLyrics(
@@ -85,9 +87,3 @@ private fun CachedLyrics.toLyrics(): Lyrics {
     plain?.takeIf { it.isNotBlank() }?.let { return Lyrics.Plain(it) }
     return Lyrics.NotFound
 }
-
-private val featuring = Regex("""\s*[(\[](feat\.?|ft\.?|with)\s[^)\]]*[)\]]""", RegexOption.IGNORE_CASE)
-private val versionSuffix = Regex("""\s+-\s+.*$""")
-
-private fun cleanTitle(title: String): String =
-    title.replace(featuring, "").replace(versionSuffix, "").trim().ifEmpty { title }
