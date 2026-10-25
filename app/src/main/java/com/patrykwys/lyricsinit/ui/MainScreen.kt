@@ -1,5 +1,8 @@
 package com.patrykwys.lyricsinit.ui
 
+import android.graphics.Bitmap
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -8,10 +11,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -26,9 +31,13 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -56,6 +65,7 @@ fun MainScreen(
     onFixBattery: () -> Unit,
 ) {
     val view by graph.engine.view.collectAsStateWithLifecycle()
+    val thumbnail by graph.artwork.thumbnail.collectAsStateWithLifecycle()
     val offsetMs by graph.settings.offsetMs.collectAsStateWithLifecycle(initialValue = 0L)
     val carLayout by graph.settings.carLayout.collectAsStateWithLifecycle(initialValue = CarLayout.MESSAGE)
     val scope = rememberCoroutineScope()
@@ -84,7 +94,7 @@ fun MainScreen(
                     onClick = onFixBattery,
                 )
             }
-            NowPlaying(view.status.track)
+            NowPlaying(view.status.track, thumbnail)
             OffsetControls(
                 offsetMs = offsetMs,
                 onAdjust = { delta -> scope.launch { graph.settings.adjustOffset(delta) } },
@@ -112,21 +122,39 @@ private fun SetupCard(title: String, body: String, action: String, onClick: () -
 }
 
 @Composable
-private fun NowPlaying(track: Track?) {
-    Column {
-        Text(
-            text = track?.title ?: "Nothing playing",
-            style = MaterialTheme.typography.headlineSmall,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Text(
-            text = track?.artist ?: "Start a song in Spotify",
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+private fun NowPlaying(track: Track?, thumbnail: Bitmap?) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Thumbnail(thumbnail)
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = track?.title ?: "Nothing playing",
+                style = MaterialTheme.typography.headlineSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = track?.artist ?: "Start a song in Spotify",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
+private fun Thumbnail(bitmap: Bitmap?) {
+    val shape = Modifier
+        .size(56.dp)
+        .clip(CircleShape)
+    if (bitmap == null) {
+        Box(shape.background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
+            Text("♪", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    } else {
+        val image = remember(bitmap) { bitmap.asImageBitmap() }
+        Image(image, contentDescription = "Artist", modifier = shape, contentScale = ContentScale.Crop)
     }
 }
 
