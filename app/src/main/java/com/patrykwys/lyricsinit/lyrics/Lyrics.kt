@@ -1,9 +1,14 @@
 package com.patrykwys.lyricsinit.lyrics
 
-data class LyricLine(val timeMs: Long, val text: String)
+/** [singers] is who sings this line; empty when nobody is credited. */
+data class LyricLine(val timeMs: Long, val text: String, val singers: Set<String> = emptySet())
 
 sealed interface Lyrics {
-    data class Synced(val lines: List<LyricLine>) : Lyrics
+    /** [singers] is everyone credited on any line, in the order screens hand out colors. */
+    data class Synced(val lines: List<LyricLine>, val singers: List<String> = emptyList()) : Lyrics {
+        val hasMultipleSingers: Boolean get() = singers.size > 1
+    }
+
     data class Plain(val text: String) : Lyrics
     data object Instrumental : Lyrics
     data object NotFound : Lyrics
