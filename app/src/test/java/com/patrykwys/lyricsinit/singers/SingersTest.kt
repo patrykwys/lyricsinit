@@ -29,6 +29,12 @@ class SingersTest {
     }
 
     @Test
+    fun `an artist named twice in one credit counts once`() {
+        val artists = listOf("Isaiah Rashad", "SZA")
+        assertEquals(artists.toSet(), resolveSingers("Isaiah Rashad, Isaiah Rashad & SZA", artists))
+    }
+
+    @Test
     fun `keeps uncredited singers and drops ad-lib parentheses`() {
         assertEquals(setOf("Eminem", "Skylar Grey"), resolveSingers("Eminem & Skylar Grey (Rihanna)", duet))
     }

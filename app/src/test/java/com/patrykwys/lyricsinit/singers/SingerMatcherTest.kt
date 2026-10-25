@@ -35,6 +35,21 @@ class SingerMatcherTest {
     }
 
     @Test
+    fun `reads polish comma headers`() {
+        val text = "[Refren, 730 Huncho]\nMami\n\n[Zwrotka 2, Malik Montana]\nJedziemy\n\n[Refren]\nMami"
+        val sections = GeniusSections.parse(text, listOf("730 Huncho", "Malik Montana", "WIKTOR"))
+        assertEquals(listOf(setOf("730 Huncho"), setOf("Malik Montana"), setOf("730 Huncho")), sections.map { it.singers })
+    }
+
+    @Test
+    fun `all means the singers named in the song, not every credited act`() {
+        val text = "[Intro: All]\nFire\n\n[Verse 1: SOYEON & Mimi Webb]\nLight it up\n\n[Pre-Chorus: MIYEON]\nBurn"
+        val artists = listOf("K/DA", "League of Legends", "SOYEON", "MIYEON", "Mimi Webb")
+        val sections = GeniusSections.parse(text, artists)
+        assertEquals(setOf("SOYEON", "Mimi Webb", "MIYEON"), sections.first().singers)
+    }
+
+    @Test
     fun `credits synced lines even when the two sources split lines differently`() {
         val lines = listOf(
             "Just gonna stand there and watch me burn?",
