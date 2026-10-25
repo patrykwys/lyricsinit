@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Three text lines and a music note, kept inside the 66dp adaptive-icon safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M28,38h34v5h-34z M28,50h30v5h-30z M28,62h24v5h-24z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M72,34h4v32h-4z M76,34l10,6v6l-10,-6z M60,66a7,7 0,1 0,14 0a7,7 0,1 0,-14 0z" />
+</vector>
