@@ -25,5 +25,6 @@ class AppGraph(context: Context) {
     private val database = Room.databaseBuilder(context, LyricsDatabase::class.java, "lyrics.db").build()
 
     val playback = SpotifyPlayback()
+    val settings = AppSettings(context)
     val repository = LyricsRepository(LrclibClient(http), database.lyricsDao())
 }
