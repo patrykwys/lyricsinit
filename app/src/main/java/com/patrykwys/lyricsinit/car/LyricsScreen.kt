@@ -20,6 +20,13 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
+/** Everything the car template is built from, swapped as one immutable value. */
+private data class CarState(
+    val view: LyricsView = LyricsView.EMPTY,
+    val layout: CarLayout = CarLayout.MESSAGE,
+    val playing: Boolean = false,
+)
+
 /**
  * The only screen on the car display. It re-renders only when the visible line, the layout
  * or play/pause changes, and always returns the same template type so updates count as refreshes.
@@ -27,21 +34,17 @@ import kotlinx.coroutines.launch
 class LyricsScreen(carContext: CarContext) : Screen(carContext) {
 
     private val graph = carContext.graph
-    private var view = LyricsView.EMPTY
-    private var layout = CarLayout.MESSAGE
-    private var playing = false
+    private var state = CarState()
 
     init {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                combine(graph.engine.view, graph.settings.carLayout, graph.playback.state) { view, layout, state ->
-                    Triple(view, layout, state.isPlaying)
+                combine(graph.engine.view, graph.settings.carLayout, graph.playback.state) { view, layout, playback ->
+                    CarState(view, layout, playback.isPlaying)
                 }
                     .distinctUntilChanged()
-                    .collect { (view, layout, playing) ->
-                        this@LyricsScreen.view = view
-                        this@LyricsScreen.layout = layout
-                        this@LyricsScreen.playing = playing
+                    .collect {
+                        state = it
                         invalidate()
                     }
             }
@@ -49,6 +52,7 @@ class LyricsScreen(carContext: CarContext) : Screen(carContext) {
     }
 
     override fun onGetTemplate(): Template {
+        val (view, layout, playing) = state
         val track = view.status.track
         val title = track?.let { "${it.title} · ${it.artist}" } ?: carContext.getString(R.string.app_name)
         val current = view.status.message() ?: view.currentLine?.text.orPlaceholder()
