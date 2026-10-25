@@ -29,7 +29,9 @@ class AppGraph(context: Context) {
         install(UserAgent) { agent = "LyricsInit/1.0 (personal Android Auto app)" }
     }
 
-    private val database = Room.databaseBuilder(context, LyricsDatabase::class.java, "lyrics.db").build()
+    private val database = Room.databaseBuilder(context, LyricsDatabase::class.java, "lyrics.db")
+        .addMigrations(LyricsDatabase.MIGRATION_1_2)
+        .build()
 
     val playback = SpotifyPlayback()
     val settings = AppSettings(context)
