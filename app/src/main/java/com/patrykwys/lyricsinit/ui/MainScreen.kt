@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -35,6 +36,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -93,6 +96,7 @@ fun MainScreen(
             OffsetControls(state.offsetMs, onAdjust = onAdjustOffset, onReset = onResetOffset)
             CarLayoutPicker(state.carLayout, onSelect = onSelectCarLayout)
             HorizontalDivider()
+            if (state.view.voices.isNotEmpty()) SingerLegend(state.view.voices)
             LyricsBody(state.view, Modifier.weight(1f).fillMaxWidth())
         }
     }
@@ -178,12 +182,34 @@ private fun CarLayoutPicker(selected: CarLayout, onSelect: (CarLayout) -> Unit) 
     }
 }
 
+/** Which color is whom, e.g. "● Eminem  ● Rihanna". */
+@Composable
+private fun SingerLegend(voices: List<String>) {
+    val palette = singerPalette()
+    Row(
+        modifier = Modifier.horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        voices.forEachIndexed { i, singer ->
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Box(
+                    Modifier
+                        .size(10.dp)
+                        .clip(CircleShape)
+                        .background(palette[i % palette.size])
+                )
+                Text(singer, style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+    }
+}
+
 @Composable
 private fun LyricsBody(view: LyricsView, modifier: Modifier) {
     val status = view.status
     val lines = view.syncedLines
     when {
-        lines != null -> SyncedLyrics(lines, view.index, modifier)
+        lines != null -> SyncedLyrics(lines, view.index, view.voices, modifier)
 
         status is LyricsStatus.Ready && status.lyrics is Lyrics.Plain -> Text(
             text = status.lyrics.text,
@@ -202,8 +228,9 @@ private fun LyricsBody(view: LyricsView, modifier: Modifier) {
 }
 
 @Composable
-private fun SyncedLyrics(lines: List<LyricLine>, index: Int, modifier: Modifier) {
+private fun SyncedLyrics(lines: List<LyricLine>, index: Int, voices: List<String>, modifier: Modifier) {
     val listState = rememberLazyListState()
+    val palette = singerPalette()
     // Keep the current line a couple of rows from the top so upcoming lines stay visible.
     LaunchedEffect(lines, index) {
         listState.animateScrollToItem((index - 2).coerceAtLeast(0))
@@ -216,11 +243,26 @@ private fun SyncedLyrics(lines: List<LyricLine>, index: Int, modifier: Modifier)
     ) {
         itemsIndexed(lines) { i, line ->
             val active = i == index
+            val singerColors = palette.forSingers(line.singers, voices)
+            val style = MaterialTheme.typography.headlineSmall
+            // Singer colors replace the primary highlight, so the current line stands out by weight and opacity.
+            val alpha = when {
+                active -> 1f
+                i < index -> 0.45f
+                else -> 0.75f
+            }
             Text(
                 text = line.text.ifBlank { "♪" },
-                style = MaterialTheme.typography.headlineSmall,
+                // A shared line blends its singers' colors.
+                style = if (singerColors.size > 1) {
+                    style.copy(brush = Brush.linearGradient(singerColors), alpha = alpha)
+                } else {
+                    style
+                },
                 fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
                 color = when {
+                    singerColors.size > 1 -> Color.Unspecified
+                    singerColors.size == 1 -> singerColors.single().copy(alpha = alpha)
                     active -> MaterialTheme.colorScheme.primary
                     i < index -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                     else -> MaterialTheme.colorScheme.onSurfaceVariant

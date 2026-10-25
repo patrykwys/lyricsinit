@@ -35,8 +35,11 @@ sealed interface LyricsStatus {
 
 /** Everything a screen needs: the lyrics status and which synced line is current (-1 = before the first). */
 data class LyricsView(val status: LyricsStatus, val index: Int) {
-    val syncedLines: List<LyricLine>?
-        get() = ((status as? LyricsStatus.Ready)?.lyrics as? Lyrics.Synced)?.lines
+    val synced: Lyrics.Synced? get() = (status as? LyricsStatus.Ready)?.lyrics as? Lyrics.Synced
+    val syncedLines: List<LyricLine>? get() = synced?.lines
+
+    /** Singers to tell apart by color, in color order. Empty for solo songs, so they look as before. */
+    val voices: List<String> get() = synced?.takeIf { it.hasMultipleSingers }?.singers.orEmpty()
     val currentLine: LyricLine? get() = syncedLines?.getOrNull(index)
     val nextLine: LyricLine? get() = syncedLines?.getOrNull(index + 1)
 
