@@ -1,5 +1,6 @@
 package com.patrykwys.lyricsinit.sync
 
+import android.util.Log
 import com.patrykwys.lyricsinit.AppSettings
 import com.patrykwys.lyricsinit.lyrics.LyricLine
 import com.patrykwys.lyricsinit.lyrics.Lyrics
@@ -93,6 +94,7 @@ class LyricsEngine(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                Log.w(TAG, "Lyrics lookup failed for ${track.artist} - ${track.title}", e)
                 onFailure(e.message ?: e.javaClass.simpleName)
                 delay(RETRY_DELAY_MS.milliseconds)
             }
@@ -124,6 +126,7 @@ class LyricsEngine(
         .stateIn(scope, SharingStarted.Eagerly, LyricsView.EMPTY)
 
     private companion object {
+        const val TAG = "LyricsEngine"
         const val RETRY_DELAY_MS = 15_000L
         const val MIN_TICK_MS = 20L
     }

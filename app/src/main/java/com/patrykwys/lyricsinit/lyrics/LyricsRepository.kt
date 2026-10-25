@@ -41,7 +41,8 @@ class LyricsRepository(
      */
     private suspend fun fetch(track: Track): LrclibTrack? {
         val durationSec = track.durationMs / 1000
-        val direct = client.get(track.title, track.artist, track.album, durationSec)
+        val calls = Calls()
+        val direct = calls.attempt { client.get(track.title, track.artist, track.album, durationSec) }
         if (direct != null && (direct.hasSynced || direct.instrumental)) return direct
 
         val queries = listOf(
@@ -51,13 +52,37 @@ class LyricsRepository(
 
         var fallback = direct?.takeIf { it.hasLyrics }
         for ((title, artist) in queries) {
-            val match = client.search(title, artist)
+            val match = calls.attempt { client.search(title, artist) }.orEmpty()
                 .filter { it.hasLyrics && it.durationMatches(durationSec) }
                 .minWithOrNull(compareBy<LrclibTrack>({ !it.hasSynced }, { abs((it.duration ?: 0.0) - durationSec) }))
             if (match?.hasSynced == true) return match
             fallback = fallback ?: match
         }
+        calls.throwIfNoneAnswered()
         return fallback
+    }
+
+    /**
+     * LRCLIB's exact lookup answers 503 "server busy" for songs it hasn't stored, for long stretches,
+     * while search still works. So one failing call is remembered instead of thrown, and only
+     * "nothing answered at all" (offline, LRCLIB down) is an error the engine retries.
+     */
+    private class Calls {
+        private var failure: Exception? = null
+        private var answered = false
+
+        suspend fun <T> attempt(call: suspend () -> T): T? = try {
+            call().also { answered = true }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            if (failure == null) failure = e
+            null
+        }
+
+        fun throwIfNoneAnswered() {
+            if (!answered) failure?.let { throw it }
+        }
     }
 
     private fun LrclibTrack.durationMatches(durationSec: Long): Boolean =

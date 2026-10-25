@@ -57,4 +57,5 @@ dependencies {
     implementation(libs.jsoup)
 
     testImplementation(libs.junit)
+    testImplementation(libs.ktor.client.mock)
 }
