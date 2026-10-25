@@ -39,6 +39,7 @@ class MainActivity : ComponentActivity() {
                             Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:$packageName"))
                         )
                     },
+                    onSeek = viewModel::seekTo,
                     onAdjustOffset = viewModel::adjustOffset,
                     onResetOffset = viewModel::resetOffset,
                     onSelectCarLayout = viewModel::setCarLayout,

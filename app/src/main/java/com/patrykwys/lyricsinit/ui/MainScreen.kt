@@ -64,6 +64,7 @@ fun MainScreen(
     batteryUnrestricted: Boolean,
     onGrantAccess: () -> Unit,
     onFixBattery: () -> Unit,
+    onSeek: (Long) -> Unit,
     onAdjustOffset: (Long) -> Unit,
     onResetOffset: () -> Unit,
     onSelectCarLayout: (CarLayout) -> Unit,
@@ -92,7 +93,12 @@ fun MainScreen(
                     onClick = onFixBattery,
                 )
             }
-            NowPlaying(state.view.status.track, state.albumThumbnail, state.artistThumbnail)
+            val track = state.view.status.track
+            NowPlaying(track, state.albumThumbnail, state.artistThumbnail)
+            // Spotify leaves the duration out for some streams; there is nothing to scale the bar to then.
+            if (track != null && track.durationMs > 0) {
+                SongTimeline(track.durationMs, state.playback, onSeek = onSeek)
+            }
             OffsetControls(state.offsetMs, onAdjust = onAdjustOffset, onReset = onResetOffset)
             CarLayoutPicker(state.carLayout, onSelect = onSelectCarLayout)
             HorizontalDivider()
