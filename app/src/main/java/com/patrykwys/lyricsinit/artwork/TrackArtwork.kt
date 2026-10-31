@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import androidx.core.graphics.scale
 
 @Serializable
 private data class DeezerArtistSearch(val data: List<DeezerArtist> = emptyList())
@@ -107,10 +108,8 @@ class TrackArtwork(
 private fun Bitmap.scaledToFit(maxPx: Int): Bitmap {
     val scale = maxPx.toFloat() / maxOf(width, height)
     if (scale >= 1f) return this
-    return Bitmap.createScaledBitmap(
-        this,
+    return this.scale(
         (width * scale).toInt().coerceAtLeast(1),
         (height * scale).toInt().coerceAtLeast(1),
-        true,
     )
 }

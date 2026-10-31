@@ -12,6 +12,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import kotlin.time.Duration.Companion.milliseconds
 
 /** Who sings which part of a track. Null when nobody knows. */
 interface SungSectionsRepository {
@@ -57,7 +58,7 @@ class GeniusSectionsRepository(
             } catch (e: Exception) {
                 Log.i(TAG, "Genius lookup failed, retrying in ${wait / 1000}s: ${e.message}")
             }
-            delay(wait)
+            delay(wait.milliseconds)
         }
         return fetch(track)
     }
