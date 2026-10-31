@@ -1,6 +1,7 @@
 package com.patrykwys.lyricsinit.lyrics
 
 import com.patrykwys.lyricsinit.media.Track
+import com.patrykwys.lyricsinit.media.cleanTitle
 import com.patrykwys.lyricsinit.media.primaryArtist
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -40,23 +41,48 @@ class LyricsRepository(
      */
     private suspend fun fetch(track: Track): LrclibTrack? {
         val durationSec = track.durationMs / 1000
-        val direct = client.get(track.title, track.artist, track.album, durationSec)
+        val calls = Calls()
+        val direct = calls.attempt { client.get(track.title, track.artist, track.album, durationSec) }
         if (direct != null && (direct.hasSynced || direct.instrumental)) return direct
 
         val queries = listOf(
             track.title to track.artist,
-            cleanTitle(track.title) to track.primaryArtist,
+            track.cleanTitle to track.primaryArtist,
         ).distinct()
 
         var fallback = direct?.takeIf { it.hasLyrics }
         for ((title, artist) in queries) {
-            val match = client.search(title, artist)
+            val match = calls.attempt { client.search(title, artist) }.orEmpty()
                 .filter { it.hasLyrics && it.durationMatches(durationSec) }
                 .minWithOrNull(compareBy<LrclibTrack>({ !it.hasSynced }, { abs((it.duration ?: 0.0) - durationSec) }))
             if (match?.hasSynced == true) return match
             fallback = fallback ?: match
         }
+        calls.throwIfNoneAnswered()
         return fallback
+    }
+
+    /**
+     * LRCLIB's exact lookup answers 503 "server busy" for songs it hasn't stored, for long stretches,
+     * while search still works. So one failing call is remembered instead of thrown, and only
+     * "nothing answered at all" (offline, LRCLIB down) is an error the engine retries.
+     */
+    private class Calls {
+        private var failure: Exception? = null
+        private var answered = false
+
+        suspend fun <T> attempt(call: suspend () -> T): T? = try {
+            call().also { answered = true }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            if (failure == null) failure = e
+            null
+        }
+
+        fun throwIfNoneAnswered() {
+            if (!answered) failure?.let { throw it }
+        }
     }
 
     private fun LrclibTrack.durationMatches(durationSec: Long): Boolean =
@@ -68,7 +94,8 @@ class LyricsRepository(
     }
 }
 
-private fun Track.cacheKey(): String = "${artist.lowercase().trim()}|${title.lowercase().trim()}|${durationMs / 1000}"
+/** Shared by every cache table that is keyed by track. */
+internal fun Track.cacheKey(): String = "${artist.lowercase().trim()}|${title.lowercase().trim()}|${durationMs / 1000}"
 
 /** A null result still becomes a row, so "not found" is cached too. */
 private fun LrclibTrack?.toEntity(id: String, fetchedAt: Long) = CachedLyrics(
@@ -85,9 +112,3 @@ private fun CachedLyrics.toLyrics(): Lyrics {
     plain?.takeIf { it.isNotBlank() }?.let { return Lyrics.Plain(it) }
     return Lyrics.NotFound
 }
-
-private val featuring = Regex("""\s*[(\[](feat\.?|ft\.?|with)\s[^)\]]*[)\]]""", RegexOption.IGNORE_CASE)
-private val versionSuffix = Regex("""\s+-\s+.*$""")
-
-private fun cleanTitle(title: String): String =
-    title.replace(featuring, "").replace(versionSuffix, "").trim().ifEmpty { title }
